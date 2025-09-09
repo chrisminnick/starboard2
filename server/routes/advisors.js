@@ -56,6 +56,12 @@ router.post('/:projectId/feedback', auth, async (req, res) => {
     const { advisorRole } = req.body;
     const { projectId } = req.params;
 
+    console.log('Structured feedback request:', {
+      projectId,
+      advisorRole,
+      userId: req.userId,
+    });
+
     const project = await Project.findOne({
       _id: projectId,
       userId: req.userId,
@@ -67,6 +73,7 @@ router.post('/:projectId/feedback', auth, async (req, res) => {
 
     // Generate structured feedback based on advisor role
     const feedback = await getStructuredFeedback(advisorRole, project);
+    console.log('Generated feedback:', feedback);
 
     // Save interaction
     project.addAdvisorInteraction(

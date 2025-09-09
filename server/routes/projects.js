@@ -82,17 +82,34 @@ router.post('/', auth, async (req, res) => {
 // Update project
 router.patch('/:id', auth, async (req, res) => {
   try {
+    console.log('Update project request:', {
+      projectId: req.params.id,
+      userId: req.userId,
+      body: req.body,
+    });
+
     const project = await Project.findOne({
       _id: req.params.id,
       userId: req.userId,
     });
 
     if (!project) {
+      console.log(
+        'Project not found for user:',
+        req.userId,
+        'project:',
+        req.params.id
+      );
       return res.status(404).json({ message: 'Project not found' });
     }
 
-    // Create version if content is being updated
-    if (req.body.content && req.body.content !== project.content) {
+    // Create version if content is being updated and current content exists
+    if (
+      req.body.content &&
+      req.body.content !== project.content &&
+      project.content &&
+      project.content.trim().length > 0
+    ) {
       project.createVersion('Auto-save version');
     }
 
@@ -104,6 +121,7 @@ router.patch('/:id', auth, async (req, res) => {
     });
 
     await project.save();
+    console.log('Project updated successfully:', project._id);
 
     res.json({
       message: 'Project updated successfully',

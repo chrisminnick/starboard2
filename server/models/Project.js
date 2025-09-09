@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const versionSchema = new mongoose.Schema({
   content: {
     type: String,
-    required: true,
+    default: '',
   },
   createdAt: {
     type: Date,

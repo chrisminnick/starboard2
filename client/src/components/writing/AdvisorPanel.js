@@ -9,6 +9,7 @@ import {
   Clock,
   User,
   Bot,
+  X,
 } from 'lucide-react';
 import LoadingSpinner from '../common/LoadingSpinner';
 
@@ -139,6 +140,24 @@ const AdvisorPanel = () => {
       console.error('Error getting feedback:', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const clearFeedback = async () => {
+    try {
+      // Get all feedback interactions for current advisor
+      const feedbackInteractions = advisorInteractions.filter(
+        (interaction) =>
+          interaction.advisorRole === activeAdvisor &&
+          interaction.interactionType === 'structured_feedback'
+      );
+
+      // Mark all as resolved
+      for (const interaction of feedbackInteractions) {
+        await resolveInteraction(interaction._id);
+      }
+    } catch (error) {
+      console.error('Error clearing feedback:', error);
     }
   };
 
@@ -580,8 +599,42 @@ const AdvisorPanel = () => {
 
             {/* Feedback History */}
             <div
-              style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px',
+                maxHeight: '400px',
+                overflowY: 'auto',
+                paddingRight: '8px',
+              }}
             >
+              {/* Clear Feedback Button */}
+              {advisorInteractions.filter(
+                (interaction) =>
+                  interaction.advisorRole === activeAdvisor &&
+                  interaction.interactionType === 'structured_feedback'
+              ).length > 0 && (
+                <button
+                  onClick={() => clearFeedback()}
+                  style={{
+                    padding: '8px 12px',
+                    backgroundColor: '#ef4444',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontSize: '12px',
+                    alignSelf: 'flex-end',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                  }}
+                >
+                  <X size={12} />
+                  Clear Feedback
+                </button>
+              )}
+
               {advisorInteractions
                 .filter(
                   (interaction) =>
@@ -596,6 +649,8 @@ const AdvisorPanel = () => {
                       backgroundColor: 'white',
                       borderRadius: '8px',
                       border: '1px solid #e1e5e9',
+                      maxHeight: '300px',
+                      overflowY: 'auto',
                     }}
                   >
                     <div
@@ -645,17 +700,60 @@ const AdvisorPanel = () => {
                       style={{
                         fontSize: '14px',
                         color: '#333',
-                        lineHeight: '1.5',
-                        whiteSpace: 'pre-wrap',
+                        lineHeight: '1.6',
                       }}
                     >
-                      {typeof interaction.content === 'string'
-                        ? interaction.content
-                        : JSON.stringify(
-                            JSON.parse(interaction.content),
-                            null,
-                            2
-                          )}
+                      {(() => {
+                        try {
+                          // Parse the JSON feedback object
+                          const feedbackData = JSON.parse(interaction.content);
+                          return (
+                            <div>
+                              <div style={{ marginBottom: '16px' }}>
+                                <strong style={{ color: '#1f2937' }}>
+                                  Overall Feedback:
+                                </strong>
+                                <div
+                                  style={{
+                                    marginTop: '8px',
+                                    whiteSpace: 'pre-wrap',
+                                    lineHeight: '1.6',
+                                  }}
+                                >
+                                  {feedbackData.overall}
+                                </div>
+                              </div>
+                              {feedbackData.rating && (
+                                <div
+                                  style={{
+                                    marginTop: '12px',
+                                    padding: '8px 12px',
+                                    backgroundColor: '#f0f9ff',
+                                    borderRadius: '6px',
+                                    fontSize: '12px',
+                                    border: '1px solid #e0f2fe',
+                                  }}
+                                >
+                                  <strong>Rating:</strong> {feedbackData.rating}
+                                  /5 ⭐
+                                </div>
+                              )}
+                            </div>
+                          );
+                        } catch (e) {
+                          // Fallback for plain text content
+                          return (
+                            <div
+                              style={{
+                                whiteSpace: 'pre-wrap',
+                                lineHeight: '1.6',
+                              }}
+                            >
+                              {interaction.content}
+                            </div>
+                          );
+                        }
+                      })()}
                     </div>
                   </div>
                 ))}

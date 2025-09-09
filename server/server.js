@@ -10,13 +10,16 @@ const projectRoutes = require('./routes/projects');
 const advisorRoutes = require('./routes/advisors');
 
 const app = express();
-const PORT = process.env.PORT || 5002;
+const PORT = process.env.PORT || 5003;
+
+// Trust proxy for rate limiting to work properly with proxies
+app.set('trust proxy', 1);
 
 // Security middleware
 app.use(helmet());
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || 'http://localhost:3000',
+    origin: process.env.CLIENT_URL || 'http://localhost:3001',
     credentials: true,
   })
 );
@@ -32,6 +35,12 @@ app.use(limiter);
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+
+// Debug middleware
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+  next();
+});
 
 // Routes
 app.use('/api/auth', authRoutes);

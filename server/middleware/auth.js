@@ -4,24 +4,29 @@ const User = require('../models/User');
 const auth = async (req, res, next) => {
   try {
     const token = req.header('Authorization')?.replace('Bearer ', '');
+    console.log('Auth middleware - Token received:', token ? 'Yes' : 'No');
 
     if (!token) {
+      console.log('Auth middleware - No token provided');
       return res
         .status(401)
         .json({ message: 'No token provided, authorization denied' });
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    console.log('Auth middleware - Token decoded for user:', decoded.userId);
 
     // Check if user still exists and has access
     const user = await User.findById(decoded.userId);
     if (!user) {
+      console.log('Auth middleware - User not found:', decoded.userId);
       return res
         .status(401)
         .json({ message: 'User not found, authorization denied' });
     }
 
     if (!user.hasAccess()) {
+      console.log('Auth middleware - User trial expired:', decoded.userId);
       return res.status(403).json({
         message: 'Your trial has expired. Please subscribe to continue.',
         trialExpired: true,
