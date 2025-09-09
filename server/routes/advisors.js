@@ -23,12 +23,22 @@ router.post('/:projectId/chat', auth, async (req, res) => {
     // Get AI response based on advisor role
     const aiResponse = await getAIResponse(advisorRole, message, project);
 
+    console.log('=== AI Response Debug ===');
+    console.log('Advisor Role:', advisorRole);
+    console.log('User Message:', message);
+    console.log('AI Response Length:', aiResponse.length);
+    console.log('AI Response Preview:', aiResponse.substring(0, 200) + '...');
+    console.log('AI Response Full:', aiResponse);
+    console.log('=== End Debug ===');
+
     // Save interaction
-    project.addAdvisorInteraction(
-      advisorRole,
-      'chat',
-      `User: ${message}\nAdvisor: ${aiResponse}`
-    );
+    const interactionContent = `User: ${message}\nAdvisor: ${aiResponse}`;
+    console.log('=== Storing Interaction ===');
+    console.log('Interaction Content Length:', interactionContent.length);
+    console.log('Interaction Content:', interactionContent);
+    console.log('=== End Interaction Storage ===');
+
+    project.addAdvisorInteraction(advisorRole, 'chat', interactionContent);
 
     // Update advisor memory
     project.advisorMemory[

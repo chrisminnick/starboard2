@@ -65,19 +65,22 @@ const AdvisorPanel = () => {
     const messages = [];
     currentAdvisorChats.forEach((interaction) => {
       const content = interaction.content;
-      const lines = content.split('\n');
 
-      lines.forEach((line) => {
-        if (line.startsWith('User: ')) {
+      // Split content into user and advisor parts
+      const parts = content.split(/\n(?=(?:User|Advisor): )/);
+
+      parts.forEach((part) => {
+        const trimmedPart = part.trim();
+        if (trimmedPart.startsWith('User: ')) {
           messages.push({
             type: 'user',
-            content: line.substring(6),
+            content: trimmedPart.substring(6).trim(),
             timestamp: interaction.createdAt,
           });
-        } else if (line.startsWith('Advisor: ')) {
+        } else if (trimmedPart.startsWith('Advisor: ')) {
           messages.push({
             type: 'advisor',
-            content: line.substring(9),
+            content: trimmedPart.substring(9).trim(),
             timestamp: interaction.createdAt,
           });
         }
