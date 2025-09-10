@@ -138,7 +138,7 @@ export const ProjectProvider = ({ children }) => {
     }
   };
 
-  const resolveInteraction = async (interactionId) => {
+  const resolveInteraction = async (interactionId, showToast = true) => {
     try {
       await axios.patch(
         `/api/advisors/${id}/interactions/${interactionId}/resolve`
@@ -153,11 +153,15 @@ export const ProjectProvider = ({ children }) => {
         )
       );
 
-      toast.success('Interaction resolved');
+      if (showToast) {
+        toast.success('Interaction resolved');
+      }
       return { success: true };
     } catch (error) {
       console.error('Error resolving interaction:', error);
-      toast.error('Failed to resolve interaction');
+      if (showToast) {
+        toast.error('Failed to resolve interaction');
+      }
       return { success: false };
     }
   };

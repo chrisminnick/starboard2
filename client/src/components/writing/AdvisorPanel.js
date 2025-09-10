@@ -12,10 +12,10 @@ import {
   X,
 } from 'lucide-react';
 import LoadingSpinner from '../common/LoadingSpinner';
+import toast from 'react-hot-toast';
 
 const AdvisorPanel = () => {
   const {
-    project,
     advisorInteractions,
     chatWithAdvisor,
     getStructuredFeedback,
@@ -58,7 +58,8 @@ const AdvisorPanel = () => {
     const currentAdvisorChats = advisorInteractions.filter(
       (interaction) =>
         interaction.advisorRole === activeAdvisor &&
-        interaction.interactionType === 'chat'
+        interaction.interactionType === 'chat' &&
+        !interaction.resolved // Only show unresolved (active) interactions
     );
 
     // Parse chat messages
@@ -146,21 +147,82 @@ const AdvisorPanel = () => {
     }
   };
 
+  const clearChat = async () => {
+    try {
+      // Get all chat interactions for current advisor
+      const chatInteractions = advisorInteractions.filter(
+        (interaction) =>
+          interaction.advisorRole === activeAdvisor &&
+          interaction.interactionType === 'chat' &&
+          !interaction.resolved
+      );
+
+      if (chatInteractions.length === 0) {
+        return;
+      }
+
+      // Mark all as resolved (suppress individual success toasts)
+      const resolvePromises = chatInteractions.map(async (interaction) => {
+        try {
+          await resolveInteraction(interaction._id, false); // Don't show individual toasts
+        } catch (error) {
+          // Let individual errors still show
+          throw error;
+        }
+      });
+
+      await Promise.all(resolvePromises);
+
+      // Clear local chat history immediately for better UX
+      setChatHistory([]);
+
+      // Show single success message
+      toast.success(
+        `Cleared ${chatInteractions.length} chat message${
+          chatInteractions.length === 1 ? '' : 's'
+        }`
+      );
+    } catch (error) {
+      console.error('Error clearing chat:', error);
+      toast.error('Failed to clear chat');
+    }
+  };
+
   const clearFeedback = async () => {
     try {
       // Get all feedback interactions for current advisor
       const feedbackInteractions = advisorInteractions.filter(
         (interaction) =>
           interaction.advisorRole === activeAdvisor &&
-          interaction.interactionType === 'structured_feedback'
+          interaction.interactionType === 'structured_feedback' &&
+          !interaction.resolved
       );
 
-      // Mark all as resolved
-      for (const interaction of feedbackInteractions) {
-        await resolveInteraction(interaction._id);
+      if (feedbackInteractions.length === 0) {
+        return;
       }
+
+      // Mark all as resolved (suppress individual success toasts)
+      const resolvePromises = feedbackInteractions.map(async (interaction) => {
+        try {
+          await resolveInteraction(interaction._id, false); // Don't show individual toasts
+        } catch (error) {
+          // Let individual errors still show
+          throw error;
+        }
+      });
+
+      await Promise.all(resolvePromises);
+
+      // Show single success message
+      toast.success(
+        `Cleared ${feedbackInteractions.length} feedback item${
+          feedbackInteractions.length === 1 ? '' : 's'
+        }`
+      );
     } catch (error) {
       console.error('Error clearing feedback:', error);
+      toast.error('Failed to clear feedback');
     }
   };
 
@@ -185,9 +247,11 @@ const AdvisorPanel = () => {
     <div
       style={{
         height: '100%',
+        maxHeight: '100vh', // Ensure it doesn't exceed viewport height
         display: 'flex',
         flexDirection: 'column',
         backgroundColor: '#f8fafc',
+        overflow: 'hidden', // Prevent the panel itself from overflowing
       }}
     >
       {/* Advisor Selection */}
@@ -343,9 +407,60 @@ const AdvisorPanel = () => {
       </div>
 
       {/* Content Area */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <div
+        style={{
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          minHeight: 0,
+        }}
+      >
         {activeTab === 'chat' ? (
           <>
+            {/* Chat Header */}
+            {chatHistory.length > 0 && (
+              <div
+                style={{
+                  padding: '12px 16px',
+                  borderBottom: '1px solid #e1e5e9',
+                  backgroundColor: 'white',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                }}
+              >
+                <h4
+                  style={{
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    color: '#333',
+                    margin: 0,
+                  }}
+                >
+                  Chat History
+                </h4>
+                <button
+                  onClick={clearChat}
+                  style={{
+                    padding: '6px 12px',
+                    backgroundColor: '#ef4444',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontSize: '12px',
+                    fontWeight: '500',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                  }}
+                >
+                  <X size={12} />
+                  Clear Chat
+                </button>
+              </div>
+            )}
+
             {/* Chat Messages */}
             <div
               style={{
@@ -355,6 +470,7 @@ const AdvisorPanel = () => {
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '12px',
+                minHeight: 0, // Important for flexbox scrolling
               }}
             >
               {chatHistory.length === 0 ? (
@@ -552,6 +668,7 @@ const AdvisorPanel = () => {
               flex: 1,
               padding: '16px',
               overflowY: 'auto',
+              minHeight: 0, // Important for flexbox scrolling
             }}
           >
             <div
@@ -615,7 +732,8 @@ const AdvisorPanel = () => {
               {advisorInteractions.filter(
                 (interaction) =>
                   interaction.advisorRole === activeAdvisor &&
-                  interaction.interactionType === 'structured_feedback'
+                  interaction.interactionType === 'structured_feedback' &&
+                  !interaction.resolved
               ).length > 0 && (
                 <button
                   onClick={() => clearFeedback()}
@@ -642,7 +760,8 @@ const AdvisorPanel = () => {
                 .filter(
                   (interaction) =>
                     interaction.advisorRole === activeAdvisor &&
-                    interaction.interactionType === 'structured_feedback'
+                    interaction.interactionType === 'structured_feedback' &&
+                    !interaction.resolved
                 )
                 .map((interaction) => (
                   <div
