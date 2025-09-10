@@ -14,12 +14,16 @@ import {
   CheckCircle,
   AlertCircle,
   Clock,
+  MessageSquare,
+  FileText,
+  User as UserIcon,
 } from 'lucide-react';
 import LoadingSpinner from '../common/LoadingSpinner';
 import AdvisorPanel from './AdvisorPanel';
 
 const WritingEnvironment = () => {
-  const { project, loading, autosaveStatus, updateProject } = useProject();
+  const { project, loading, autosaveStatus, updateProject, addInlineComment } =
+    useProject();
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -27,6 +31,14 @@ const WritingEnvironment = () => {
   const [showAdvisors, setShowAdvisors] = useState(true);
   const [lastSaved, setLastSaved] = useState(null);
   const [wordCount, setWordCount] = useState(0);
+  const [selectedText, setSelectedText] = useState('');
+  const [selectionRange, setSelectionRange] = useState(null);
+  const [showCommentMenu, setShowCommentMenu] = useState(false);
+  const [commentMenuPosition, setCommentMenuPosition] = useState({
+    x: 0,
+    y: 0,
+  });
+  const [isAddingComment, setIsAddingComment] = useState(false);
   const autosaveTimeoutRef = useRef(null);
   const quillRef = useRef(null);
 
@@ -112,6 +124,66 @@ const WritingEnvironment = () => {
         return 'Save failed';
       default:
         return lastSaved ? `Last saved: ${lastSaved.toLocaleTimeString()}` : '';
+    }
+  };
+
+  // Handle text selection for inline comments
+  const handleSelectionChange = () => {
+    if (!quillRef.current) return;
+
+    const quill = quillRef.current.getEditor();
+    const range = quill.getSelection();
+
+    if (range && range.length > 0) {
+      const text = quill.getText(range.index, range.length).trim();
+      if (text.length > 0) {
+        setSelectedText(text);
+        setSelectionRange(range);
+
+        // Position the comment menu near the selection
+        const bounds = quill.getBounds(range.index, range.length);
+        const editorContainer = quill.container.getBoundingClientRect();
+
+        setCommentMenuPosition({
+          x: editorContainer.left + bounds.left + bounds.width / 2,
+          y: editorContainer.top + bounds.top - 10,
+        });
+        setShowCommentMenu(true);
+      } else {
+        setShowCommentMenu(false);
+      }
+    } else {
+      setShowCommentMenu(false);
+      setSelectedText('');
+      setSelectionRange(null);
+    }
+  };
+
+  const hideCommentMenu = () => {
+    setShowCommentMenu(false);
+    setSelectedText('');
+    setSelectionRange(null);
+  };
+
+  const handleAddInlineComment = async (advisorRole) => {
+    if (!selectedText || !selectionRange) return;
+
+    setIsAddingComment(true);
+    hideCommentMenu();
+
+    try {
+      const result = await addInlineComment(advisorRole, selectedText, {
+        start: selectionRange.index,
+        end: selectionRange.index + selectionRange.length,
+      });
+
+      if (result.success) {
+        // Comment added successfully - the advisor panel will refresh automatically
+      }
+    } catch (error) {
+      console.error('Error adding inline comment:', error);
+    } finally {
+      setIsAddingComment(false);
     }
   };
 
@@ -348,6 +420,7 @@ const WritingEnvironment = () => {
                 theme="snow"
                 value={content}
                 onChange={handleContentChange}
+                onChangeSelection={handleSelectionChange}
                 modules={quillModules}
                 formats={quillFormats}
                 style={{
@@ -359,6 +432,108 @@ const WritingEnvironment = () => {
             </div>
           </div>
         </div>
+
+        {/* Floating Comment Menu */}
+        {showCommentMenu && (
+          <>
+            {/* Backdrop to close menu */}
+            <div
+              style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                zIndex: 998,
+              }}
+              onClick={hideCommentMenu}
+            />
+            {/* Comment Menu */}
+            <div
+              style={{
+                position: 'fixed',
+                top: commentMenuPosition.y,
+                left: commentMenuPosition.x,
+                transform: 'translateX(-50%)',
+                backgroundColor: 'white',
+                border: '1px solid #e1e5e9',
+                borderRadius: '8px',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                padding: '8px',
+                zIndex: 999,
+                display: 'flex',
+                gap: '4px',
+              }}
+            >
+              <button
+                onClick={() => handleAddInlineComment('editor')}
+                disabled={isAddingComment}
+                style={{
+                  padding: '6px 10px',
+                  backgroundColor: '#667eea',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: isAddingComment ? 'not-allowed' : 'pointer',
+                  fontSize: '11px',
+                  fontWeight: '500',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  opacity: isAddingComment ? 0.6 : 1,
+                }}
+                title="Ask Editor about this text"
+              >
+                <FileText size={12} />
+                Editor
+              </button>
+              <button
+                onClick={() => handleAddInlineComment('copyeditor')}
+                disabled={isAddingComment}
+                style={{
+                  padding: '6px 10px',
+                  backgroundColor: '#10b981',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: isAddingComment ? 'not-allowed' : 'pointer',
+                  fontSize: '11px',
+                  fontWeight: '500',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  opacity: isAddingComment ? 0.6 : 1,
+                }}
+                title="Ask Copyeditor about this text"
+              >
+                <FileText size={12} />
+                Copy
+              </button>
+              <button
+                onClick={() => handleAddInlineComment('reader')}
+                disabled={isAddingComment}
+                style={{
+                  padding: '6px 10px',
+                  backgroundColor: '#f59e0b',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: isAddingComment ? 'not-allowed' : 'pointer',
+                  fontSize: '11px',
+                  fontWeight: '500',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  opacity: isAddingComment ? 0.6 : 1,
+                }}
+                title="Ask Reader about this text"
+              >
+                <UserIcon size={12} />
+                Reader
+              </button>
+            </div>
+          </>
+        )}
 
         {/* Advisor Panel */}
         {showAdvisors && (

@@ -1,6 +1,12 @@
 // AI Service for Starboard Write
 // This service handles communication with AI providers (OpenAI, etc.)
 
+const OpenAI = require('openai');
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
 const advisorPersonalities = {
   editor: {
     name: 'Editorial Assistant',
@@ -43,32 +49,59 @@ const advisorPersonalities = {
   },
 };
 
-// Mock AI service - replace with actual OpenAI integration
+// Real AI service using OpenAI
 async function getAIResponse(advisorRole, prompt, project) {
   try {
-    // In a real implementation, you would call OpenAI or another AI service here
-    // For MVP purposes, we'll return mock responses
-
     const advisor = advisorPersonalities[advisorRole];
     if (!advisor) {
       throw new Error(`Unknown advisor role: ${advisorRole}`);
     }
 
-    // Mock response based on advisor role
-    const mockResponses = {
-      editor: generateEditorResponse(prompt, project),
-      copyeditor: generateCopyeditorResponse(prompt, project),
-      reader: generateReaderResponse(prompt, project),
-    };
+    // Create the context about the project and content
+    const projectContext = `
+Project Title: ${project.title}
+Template: ${project.template}
+Target Audience: ${project.targetAudience || 'General audience'}
+Current Word Count: ${project.currentWordCount || 0}
+Content: ${project.content || 'No content yet'}
+    `.trim();
 
-    // Simulate API delay
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    // Make the OpenAI API call
+    const completion = await openai.chat.completions.create({
+      model: process.env.AI_MODEL || 'gpt-3.5-turbo',
+      messages: [
+        {
+          role: 'system',
+          content: advisor.systemPrompt,
+        },
+        {
+          role: 'user',
+          content: `${prompt}\n\nProject Information:\n${projectContext}`,
+        },
+      ],
+      max_tokens: 1000,
+      temperature: 0.7,
+    });
 
-    return mockResponses[advisorRole];
+    return completion.choices[0].message.content;
   } catch (error) {
-    console.error('AI Service error:', error);
-    throw new Error('Failed to get AI response');
+    console.error('OpenAI API error:', error);
+
+    // Fallback to mock responses if OpenAI fails
+    console.log('Falling back to mock responses due to API error');
+    return getMockResponse(advisorRole, prompt, project);
   }
+}
+
+// Fallback mock responses
+function getMockResponse(advisorRole, prompt, project) {
+  const mockResponses = {
+    editor: generateEditorResponse(prompt, project),
+    copyeditor: generateCopyeditorResponse(prompt, project),
+    reader: generateReaderResponse(prompt, project),
+  };
+
+  return mockResponses[advisorRole];
 }
 
 function generateEditorResponse(prompt, project) {
@@ -304,22 +337,6 @@ I'm genuinely excited to see how this develops. The foundation is strong and you
   ];
 
   return responses[Math.floor(Math.random() * responses.length)];
-}
-
-// Function to integrate with actual OpenAI API (for future implementation)
-async function getOpenAIResponse(advisorRole, prompt, project) {
-  // This would be implemented when integrating with OpenAI
-  // const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-  // const completion = await openai.chat.completions.create({
-  //   model: process.env.AI_MODEL || 'gpt-3.5-turbo',
-  //   messages: [
-  //     { role: 'system', content: advisorPersonalities[advisorRole].systemPrompt },
-  //     { role: 'user', content: `Project: ${project.title}\nContent: ${project.content}\n\nPrompt: ${prompt}` }
-  //   ],
-  //   max_tokens: 500,
-  //   temperature: 0.7
-  // });
-  // return completion.choices[0].message.content;
 }
 
 module.exports = {

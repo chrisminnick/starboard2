@@ -14,7 +14,12 @@ import {
 import LoadingSpinner from '../common/LoadingSpinner';
 import toast from 'react-hot-toast';
 
-const AdvisorPanel = () => {
+const AdvisorPanel = ({
+  initialAdvisor = 'editor',
+  initialTab = 'chat',
+  onAdvisorChange,
+  onTabChange,
+}) => {
   const {
     advisorInteractions,
     chatWithAdvisor,
@@ -22,8 +27,8 @@ const AdvisorPanel = () => {
     resolveInteraction,
   } = useProject();
 
-  const [activeAdvisor, setActiveAdvisor] = useState('editor');
-  const [activeTab, setActiveTab] = useState('chat');
+  const [activeAdvisor, setActiveAdvisor] = useState(initialAdvisor);
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [chatMessage, setChatMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [chatHistory, setChatHistory] = useState([]);
@@ -52,6 +57,35 @@ const AdvisorPanel = () => {
       icon: User,
     },
   ];
+
+  // Respond to prop changes
+  useEffect(() => {
+    if (initialAdvisor !== activeAdvisor) {
+      setActiveAdvisor(initialAdvisor);
+    }
+  }, [initialAdvisor]);
+
+  useEffect(() => {
+    if (initialTab !== activeTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
+
+  // Handle advisor change
+  const handleAdvisorChange = (advisorId) => {
+    setActiveAdvisor(advisorId);
+    if (onAdvisorChange) {
+      onAdvisorChange(advisorId);
+    }
+  };
+
+  // Handle tab change
+  const handleTabChange = (tabId) => {
+    setActiveTab(tabId);
+    if (onTabChange) {
+      onTabChange(tabId);
+    }
+  };
 
   useEffect(() => {
     // Load chat history for current advisor
@@ -277,7 +311,7 @@ const AdvisorPanel = () => {
           {advisors.map((advisor) => (
             <button
               key={advisor.id}
-              onClick={() => setActiveAdvisor(advisor.id)}
+              onClick={() => handleAdvisorChange(advisor.id)}
               style={{
                 flex: 1,
                 padding: '8px 12px',
@@ -356,7 +390,7 @@ const AdvisorPanel = () => {
         }}
       >
         <button
-          onClick={() => setActiveTab('chat')}
+          onClick={() => handleTabChange('chat')}
           style={{
             flex: 1,
             padding: '12px',
@@ -380,7 +414,7 @@ const AdvisorPanel = () => {
           Chat
         </button>
         <button
-          onClick={() => setActiveTab('feedback')}
+          onClick={() => handleTabChange('feedback')}
           style={{
             flex: 1,
             padding: '12px',
@@ -403,6 +437,31 @@ const AdvisorPanel = () => {
         >
           <FileText size={16} />
           Feedback
+        </button>
+        <button
+          onClick={() => handleTabChange('comments')}
+          style={{
+            flex: 1,
+            padding: '12px',
+            backgroundColor:
+              activeTab === 'comments' ? '#f8fafc' : 'transparent',
+            color: activeTab === 'comments' ? '#333' : '#666',
+            border: 'none',
+            borderBottom:
+              activeTab === 'comments'
+                ? '2px solid #667eea'
+                : '2px solid transparent',
+            cursor: 'pointer',
+            fontSize: '14px',
+            fontWeight: '500',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+          }}
+        >
+          <MessageSquare size={16} />
+          Comments
         </button>
       </div>
 
@@ -661,7 +720,7 @@ const AdvisorPanel = () => {
               </div>
             </div>
           </>
-        ) : (
+        ) : activeTab === 'feedback' ? (
           /* Feedback Tab */
           <div
             style={{
@@ -908,6 +967,152 @@ const AdvisorPanel = () => {
                     }}
                   >
                     Click "Get Feedback" to receive structured analysis
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          /* Inline Comments Tab */
+          <div
+            style={{
+              flex: 1,
+              padding: '16px',
+              overflowY: 'auto',
+              minHeight: 0,
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '16px',
+              }}
+            >
+              <h4
+                style={{
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  color: '#333',
+                  margin: 0,
+                }}
+              >
+                Inline Comments
+              </h4>
+            </div>
+
+            {/* Comments List */}
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px',
+              }}
+            >
+              {advisorInteractions
+                .filter(
+                  (interaction) =>
+                    interaction.advisorRole === activeAdvisor &&
+                    interaction.interactionType === 'inline_comment' &&
+                    !interaction.resolved
+                )
+                .map((interaction) => (
+                  <div
+                    key={interaction._id}
+                    style={{
+                      padding: '16px',
+                      backgroundColor: 'white',
+                      borderRadius: '8px',
+                      border: '1px solid #e1e5e9',
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'flex-start',
+                        marginBottom: '8px',
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontSize: '12px',
+                          color: '#666',
+                          fontWeight: '500',
+                        }}
+                      >
+                        {interaction.position && (
+                          <>
+                            Position: {interaction.position.start}-
+                            {interaction.position.end}
+                            <br />
+                          </>
+                        )}
+                        {new Date(interaction.createdAt).toLocaleString()}
+                      </div>
+                      <button
+                        onClick={() => resolveInteraction(interaction._id)}
+                        style={{
+                          padding: '4px 8px',
+                          backgroundColor: '#10b981',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          fontSize: '11px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                        }}
+                      >
+                        <CheckCircle size={12} />
+                        Resolve
+                      </button>
+                    </div>
+                    <div
+                      style={{
+                        fontSize: '14px',
+                        color: '#333',
+                        lineHeight: '1.5',
+                        whiteSpace: 'pre-wrap',
+                      }}
+                    >
+                      {interaction.content}
+                    </div>
+                  </div>
+                ))}
+
+              {advisorInteractions.filter(
+                (interaction) =>
+                  interaction.advisorRole === activeAdvisor &&
+                  interaction.interactionType === 'inline_comment' &&
+                  !interaction.resolved
+              ).length === 0 && (
+                <div
+                  style={{
+                    textAlign: 'center',
+                    padding: '40px 20px',
+                    color: '#666',
+                  }}
+                >
+                  <MessageSquare
+                    size={48}
+                    style={{
+                      color: '#cbd5e1',
+                      margin: '0 auto 16px',
+                    }}
+                  />
+                  <p style={{ fontSize: '14px', margin: 0 }}>No comments yet</p>
+                  <p
+                    style={{
+                      fontSize: '12px',
+                      margin: '8px 0 0 0',
+                      color: '#94a3b8',
+                    }}
+                  >
+                    Select text in the editor and choose an advisor to add
+                    comments
                   </p>
                 </div>
               )}
